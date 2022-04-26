@@ -10,9 +10,7 @@ import Status from './common/Status'
 import { useStream } from '../stores/stream'
 
 const createItemWatcher = (block: ScrollLogicalPosition) => {
-  const [prevItem, setPrevItem] = createSignal<HTMLElement | null>(
-    null
-  )
+  const [prevItem, setPrevItem] = createSignal<HTMLElement | null>(null)
   const [item, setItem] = createSignal<HTMLElement | null>(null)
   const [isItemVisible, setVisible] = createSignal(false)
   const observer = new IntersectionObserver(
@@ -22,12 +20,10 @@ const createItemWatcher = (block: ScrollLogicalPosition) => {
   createEffect(() => {
     const el = item()
     const prevEl = untrack(prevItem)
-    if (el !== prevEl) {
+    if (prevEl) observer.unobserve(prevEl)
+    if (el?.id !== prevEl?.id) {
       if (el) observer.observe(el)
-      if (prevEl) {
-        observer.unobserve(prevEl)
-        document.getElementById(prevEl.id)?.scrollIntoView({ block })
-      }
+      if (prevEl) document.getElementById(prevEl.id)?.scrollIntoView({ block })
     }
   })
   createEffect(() => setPrevItem(item()))
@@ -56,16 +52,14 @@ const PublicTimelines: Component = () => {
         {(status, i) => (
           <Status
             status={status}
-            onMount={
-              (() => {
-                switch (i()) {
-                  case 0:
-                    return (ref) => setTopItem(ref ?? null)
-                  case (streamState.items?.length ?? 0) - 1:
-                    return (ref) => setBottomItem(ref ?? null)
-                }
-              })()
-            }
+            onMount={(() => {
+              switch (i()) {
+                case 0:
+                  return (ref) => setTopItem(ref ?? null)
+                case (streamState.items?.length ?? 0) - 1:
+                  return (ref) => setBottomItem(ref ?? null)
+              }
+            })()}
           />
         )}
       </For>

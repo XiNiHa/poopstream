@@ -3,10 +3,7 @@ import SolidPlugin from 'vite-plugin-solid'
 import WindiCSS from 'vite-plugin-windicss'
 
 export default defineConfig({
-  plugins: [
-    SolidPlugin(),
-    WindiCSS(),
-  ],
+  plugins: [SolidPlugin(), WindiCSS()],
   build: {
     target: 'esnext',
     polyfillDynamicImport: false,

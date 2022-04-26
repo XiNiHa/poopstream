@@ -474,6 +474,35 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@solid-primitives/intersection-observer@npm:^1.3.0":
+  version: 1.3.0
+  resolution: "@solid-primitives/intersection-observer@npm:1.3.0"
+  dependencies:
+    "@solid-primitives/utils": ^1.0.0
+  peerDependencies:
+    solid-js: ^1.3.1
+  checksum: 4e0f0f670f18e655e920eeb9985055eb53cd2e5ddece0d492bb2a3fe9f7a7aa6c9873d70281c2409e3f908664c0ab58052f689bad465ba4511041996ca78fb37
+  languageName: node
+  linkType: hard
+
+"@solid-primitives/storage@npm:^1.3.0":
+  version: 1.3.0
+  resolution: "@solid-primitives/storage@npm:1.3.0"
+  peerDependencies:
+    solid-js: ^1.3.1
+  checksum: aa3bc27bb7229fd3a834d81a53e5738f5f3f7d95e2e65605eaf9ef8a63ff26af294508e24f860969f7816f6d304d6a9df1f1883fd75b3b39d5a5414fa939ae31
+  languageName: node
+  linkType: hard
+
+"@solid-primitives/utils@npm:^1.0.0":
+  version: 1.3.0
+  resolution: "@solid-primitives/utils@npm:1.3.0"
+  peerDependencies:
+    solid-js: ^1.3.1
+  checksum: 286902b28e6bc8550e6895befafaf844cde1e3f8f690f15986f35b44d6a4ccdf98987b0cb5168b004ce6983602ba3c75f14fc403610aea44e2bbe28afc28ab12
+  languageName: node
+  linkType: hard
+
 "@tootallnate/once@npm:2":
   version: 2.0.0
   resolution: "@tootallnate/once@npm:2.0.0"
@@ -2636,12 +2665,15 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "poopstream@workspace:."
   dependencies:
+    "@solid-primitives/intersection-observer": ^1.3.0
+    "@solid-primitives/storage": ^1.3.0
     "@typescript-eslint/eslint-plugin": ^5.21.0
     "@typescript-eslint/parser": ^5.21.0
     eslint: ^8.14.0
     eslint-config-prettier: ^8.5.0
     eslint-plugin-solid: ^0.4.7
     prettier: ^2.6.2
+    solid-app-router: ^0.3.2
     solid-js: ^1.3.13
     typescript: ^4.6.3
     vite: ^2.8.6
@@ -2922,6 +2954,15 @@ __metadata:
     ip: ^1.1.5
     smart-buffer: ^4.2.0
   checksum: dd9194293059d737759d5c69273850ad4149f448426249325c4bea0e340d1cf3d266c3b022694b0dcf5d31f759de23657244c481fc1e8322add80b7985c36b5e
+  languageName: node
+  linkType: hard
+
+"solid-app-router@npm:^0.3.2":
+  version: 0.3.2
+  resolution: "solid-app-router@npm:0.3.2"
+  peerDependencies:
+    solid-js: ^1.3.5
+  checksum: 9392ff42e4310057fa311140ccfff43dc0308da36a6b3ee154f7678b33f0d41b53af0619d9bfb56e197517f298888ff220e8ca3a051dfd2ab370387bd13c0c97
   languageName: node
   linkType: hard
 

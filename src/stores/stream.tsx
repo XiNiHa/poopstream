@@ -42,6 +42,7 @@ export const StreamProvider: Component = (props) => {
   })
   const [lock, setLock] = createSignal(false)
   const [reachedTop, setReachedTop] = createSignal(false)
+  let reachedTopResetTimeout: number
 
   const state = _store as StreamContextState
 
@@ -61,7 +62,9 @@ export const StreamProvider: Component = (props) => {
         `https://twingyeo.kr/api/v1/timelines/public?${params}`
       ).then((res) => res.json())
 
+      if (reachedTopResetTimeout) clearTimeout(reachedTopResetTimeout)
       setReachedTop(statuses.length < 20)
+      reachedTopResetTimeout = setTimeout(() => setReachedTop(false), 10000)
       setStore('items', [
         ...statuses,
         ...(state.items?.slice(

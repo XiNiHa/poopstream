@@ -1,16 +1,12 @@
 import { Match, onMount, Show, Switch, type Component } from 'solid-js'
-import type * as Mastodon from '../../types/mastodon'
-
-type DeepReadonly<T> = {
-  readonly [P in keyof T]: DeepReadonly<T[P]>
-}
+import { TootEntity } from '../../services/mastodon'
 
 interface Props {
-  status: DeepReadonly<Mastodon.Status>
+  entity: TootEntity
   onMount?: (ref: HTMLElement | undefined) => void
 }
 
-const Status: Component<Props> = (props) => {
+const Toot: Component<Props> = (props) => {
   // eslint-disable-next-line prefer-const
   let ref: HTMLDivElement | undefined = undefined
   onMount(() => props.onMount && props.onMount(ref))
@@ -26,7 +22,7 @@ const Status: Component<Props> = (props) => {
   return (
     <div
       ref={ref}
-      id={`mastodon-status-${props.status.id}`}
+      id={`mastodon-toot-${props.entity.id}`}
       flex="~ col"
       m="4"
       p="y-4 x-8"
@@ -36,20 +32,22 @@ const Status: Component<Props> = (props) => {
       <div flex="~ row" justify="between" items="center">
         <div flex="~ row" items="center">
           <img
-            src={props.status.account.avatar}
-            alt={`Avatar image of ${props.status.account.display_name}`}
+            src={props.entity.inner.account.avatar}
+            alt={`Avatar image of ${props.entity.inner.account.display_name}`}
             w="16"
             h="16"
             border="rounded-full"
           />
-          <a href={props.status.account.url} flex="~ col" m="l-4">
-            <Show when={props.status.account.display_name}>
-              <span text="lg">{props.status.account.display_name}</span>
-              <span text="base gray-400">@{props.status.account.username}</span>
+          <a href={props.entity.inner.account.url} flex="~ col" m="l-4">
+            <Show when={props.entity.inner.account.display_name}>
+              <span text="lg">{props.entity.inner.account.display_name}</span>
+              <span text="base gray-400">
+                @{props.entity.inner.account.username}
+              </span>
             </Show>
-            <Show when={!props.status.account.display_name}>
-              <a href={props.status.account.url} text="lg">
-                @{props.status.account.username}
+            <Show when={!props.entity.inner.account.display_name}>
+              <a href={props.entity.inner.account.url} text="lg">
+                @{props.entity.inner.account.username}
               </a>
             </Show>
           </a>
@@ -57,19 +55,23 @@ const Status: Component<Props> = (props) => {
         <div flex="~ col" justify="end" text="right gray-500 space-nowrap">
           <span>
             <Switch>
-              <Match when={props.status.visibility === 'public'}>Public</Match>
-              <Match when={props.status.visibility === 'unlisted'}>
+              <Match when={props.entity.inner.visibility === 'public'}>
+                Public
+              </Match>
+              <Match when={props.entity.inner.visibility === 'unlisted'}>
                 Unlisted
               </Match>
-              <Match when={props.status.visibility === 'private'}>
+              <Match when={props.entity.inner.visibility === 'private'}>
                 Private
               </Match>
-              <Match when={props.status.visibility === 'direct'}>Direct</Match>
+              <Match when={props.entity.inner.visibility === 'direct'}>
+                Direct
+              </Match>
             </Switch>
           </span>
           <span>
             {(() => {
-              const date = new Date(props.status.created_at)
+              const date = new Date(props.entity.inner.created_at)
               const day = new Date(
                 date.getFullYear(),
                 date.getMonth(),
@@ -83,9 +85,9 @@ const Status: Component<Props> = (props) => {
         </div>
       </div>
       {/* eslint-disable-next-line solid/no-innerhtml */}
-      <div m="y-2" innerHTML={props.status.content} />
+      <div m="y-2" innerHTML={props.entity.inner.content} />
     </div>
   )
 }
 
-export default Status
+export default Toot

@@ -6,7 +6,7 @@ import {
   untrack,
   type Component,
 } from 'solid-js'
-import Status from './common/Status'
+import Toot from './common/Toot'
 import { useStream } from '../stores/stream'
 
 const createItemWatcher = (block: ScrollLogicalPosition) => {
@@ -41,22 +41,22 @@ const PublicTimelines: Component = () => {
   const [isBottomItemVisible, setBottomItem] = createItemWatcher('end')
 
   createEffect(() => {
-    if (!streamState.items?.length) loadItemsTop()
-    if (isTopItemVisible()) loadItemsTop()
-    if (isBottomItemVisible()) loadItemsBottom()
+    if (streamState.streams.home.entities?.length === 0) loadItemsTop('home')
+    if (isTopItemVisible()) loadItemsTop('home')
+    if (isBottomItemVisible()) loadItemsBottom('home')
   })
 
   return (
     <div id="timeline" m="x-auto" w="max-3xl">
-      <For each={streamState.items ?? []}>
-        {(status, i) => (
-          <Status
-            status={status}
+      <For each={streamState.streams.home.entities ?? []}>
+        {(entity, i) => (
+          <Toot
+            entity={entity}
             onMount={(() => {
               switch (i()) {
                 case 0:
                   return (ref) => setTopItem(ref ?? null)
-                case (streamState.items?.length ?? 0) - 1:
+                case (streamState.streams.home.entities?.length ?? 0) - 1:
                   return (ref) => setBottomItem(ref ?? null)
               }
             })()}

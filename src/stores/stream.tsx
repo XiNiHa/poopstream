@@ -2,20 +2,34 @@ import { createLocalStorage } from '@solid-primitives/storage'
 import {
   createContext,
   createSignal,
+  onMount,
   useContext,
   type Component,
 } from 'solid-js'
-import { GetV1TimelinesPublicResult } from '../types/mastodon'
-import type { StreamItem } from '../types/stream'
+import { MastodonServiceId } from '../services/mastodon'
+import type { Entity } from '../services'
+import { useService } from './service'
+import { isTruthy } from '../utils'
+import { createStore, Store } from 'solid-js/store'
 
 const MAX_STREAM_ITEM_COUNT = 200
+const STREAM_LOAD_COUNT_PER_SOURCE = 10
 
-export type StreamContextState = {
-  items: StreamItem[] | null
-}
+export type StreamContextState = Store<{
+  streams: Record<
+    string,
+    {
+      sources: {
+        serviceId: string
+        streamSourceId: string
+      }[]
+      entities: Entity[] | null
+    }
+  >
+}>
 type StreamContextActions = {
-  loadItemsTop: (force?: boolean) => Promise<string | null>
-  loadItemsBottom: () => Promise<string | null>
+  loadItemsTop: (streamId: string, force?: boolean) => Promise<Entity | null>
+  loadItemsBottom: (streamId: string) => Promise<Entity | null>
 }
 export type StreamContextValue = [
   state: StreamContextState,
@@ -23,7 +37,17 @@ export type StreamContextValue = [
 ]
 
 const defaultState = {
-  items: [],
+  streams: {
+    home: {
+      sources: [
+        {
+          serviceId: MastodonServiceId,
+          streamSourceId: 'publicTimeline',
+        },
+      ],
+      entities: null,
+    },
+  },
 }
 
 const StreamContext = createContext<StreamContextValue>([
@@ -34,80 +58,137 @@ const StreamContext = createContext<StreamContextValue>([
   },
 ])
 
+function getCursorForService(
+  serviceId: string,
+  entities: readonly Entity[] | null,
+  direction: 'before' | 'after'
+): string | null {
+  if (!entities) return null
+  const filtered = entities.filter((entity) => entity.serviceId === serviceId)
+  switch (direction) {
+    case 'before':
+      return filtered.length ?? 0 > 0 ? filtered[0].id : null
+    case 'after':
+      return filtered.length ?? 0 > 0 ? filtered[filtered.length - 1].id : null
+  }
+}
+
 export const StreamProvider: Component = (props) => {
-  const [_store, setStore] = createLocalStorage<unknown, unknown>({
+  const [store, setStore] = createLocalStorage<unknown, unknown>({
     prefix: 'poopstream-StreamProvider',
     serializer: (val) => JSON.stringify(val),
     deserializer: (val) => JSON.parse(val),
   })
+  const [state, setState] = createStore<StreamContextState>({
+    ...defaultState,
+    ...(store.streams as StreamContextState['streams']),
+  })
+  onMount(() => {
+    const streams = store.streams as StreamContextState['streams']
+    setState(
+      'streams',
+      streams ??
+        Object.fromEntries(
+          Object.entries(state.streams).map(([k, v]) => [
+            k,
+            { ...v, entities: [] },
+          ])
+        )
+    )
+  })
+  const [serviceState] = useService()
   const [lock, setLock] = createSignal(false)
   const [reachedTop, setReachedTop] = createSignal(false)
   let reachedTopResetTimeout: number
 
-  const state = _store as StreamContextState
-
   const actions: StreamContextActions = {
     // eslint-disable-next-line solid/reactivity
-    loadItemsTop: async (force) => {
+    loadItemsTop: async (streamId, force) => {
       if (lock()) return null
       if (reachedTop() && !force) return null
       setLock(true)
       console.log('loadItemsTop')
-      const since_id = state.items?.length ?? 0 > 0 ? state.items?.[0].id : null
-      const params = new URLSearchParams({
-        ...(since_id && { since_id }),
-        limit: '20',
-      })
-      const statuses: GetV1TimelinesPublicResult = await fetch(
-        `https://twingyeo.kr/api/v1/timelines/public?${params}`
-      ).then((res) => res.json())
+      const stream = state.streams[streamId]
+      const results = await Promise.allSettled(
+        stream.sources.map((source) => {
+          const beforeCursor = getCursorForService(
+            source.serviceId,
+            stream.entities,
+            'before'
+          )
+          return serviceState.services[source.serviceId].streamSources[
+            source.streamSourceId
+          ].getEntitiesBefore(beforeCursor, STREAM_LOAD_COUNT_PER_SOURCE)
+        })
+      )
+      const entities = results
+        .map((result) => (result.status === 'fulfilled' ? result.value : null))
+        .filter(isTruthy)
+        .flat()
+
+      entities.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
 
       if (reachedTopResetTimeout) clearTimeout(reachedTopResetTimeout)
-      setReachedTop(statuses.length < 20)
+      setReachedTop(entities.length === 0)
       reachedTopResetTimeout = setTimeout(() => setReachedTop(false), 10000)
-      setStore('items', [
-        ...statuses,
-        ...(state.items?.slice(
+
+      const newEntities = [
+        ...entities,
+        ...(stream.entities?.slice(
           0,
           Math.min(
-            state.items.length,
-            state.items.length -
-              (state.items.length + statuses.length - MAX_STREAM_ITEM_COUNT)
+            stream.entities.length,
+            stream.entities.length -
+              (stream.entities.length + entities.length - MAX_STREAM_ITEM_COUNT)
           )
         ) ?? []),
-      ])
+      ]
+      setState('streams', streamId, 'entities', newEntities)
+      setStore('streams', state.streams)
+
       setTimeout(() => setLock(false), 1000)
-      return since_id ?? null
+      return newEntities[0] ?? null
     },
     // eslint-disable-next-line solid/reactivity
-    loadItemsBottom: async () => {
+    loadItemsBottom: async (streamId) => {
       if (lock()) return null
       setLock(true)
       console.log('loadItemsBottom')
-      const max_id =
-        state.items?.length ?? 0 > 0
-          ? state.items?.[state.items.length - 1].id
-          : null
-      const params = new URLSearchParams({
-        ...(max_id && { max_id }),
-        limit: '20',
-      })
-      const statuses: GetV1TimelinesPublicResult = await fetch(
-        `https://twingyeo.kr/api/v1/timelines/public?${params}`
-      ).then((res) => res.json())
+      const stream = state.streams[streamId]
+      const results = await Promise.allSettled(
+        stream.sources.map((source) => {
+          const afterCursor = getCursorForService(
+            source.serviceId,
+            stream.entities,
+            'after'
+          )
+          return serviceState.services[source.serviceId].streamSources[
+            source.streamSourceId
+          ].getEntitiesAfter(afterCursor, STREAM_LOAD_COUNT_PER_SOURCE)
+        })
+      )
+      const entities = results
+        .map((result) => (result.status === 'fulfilled' ? result.value : null))
+        .filter(isTruthy)
+        .flat()
+
+      entities.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
 
       const frontSlice = Math.max(
         0,
-        (state.items?.length ?? 0) + statuses.length - MAX_STREAM_ITEM_COUNT
+        (stream.entities?.length ?? 0) + entities.length - MAX_STREAM_ITEM_COUNT
       )
 
-      setStore('items', [
-        ...(state.items?.slice(frontSlice) ?? []),
-        ...statuses,
-      ])
+      const newEntities = [
+        ...(stream.entities?.slice(frontSlice) ?? []),
+        ...entities,
+      ]
+      setState('streams', streamId, 'entities', newEntities)
+      setStore('streams', state.streams)
+
       if (frontSlice !== 0) setReachedTop(false)
       setTimeout(() => setLock(false), 1000)
-      return max_id ?? null
+      return newEntities[newEntities.length - 1] ?? null
     },
   }
 

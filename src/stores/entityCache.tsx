@@ -6,8 +6,8 @@ import {
   type Component,
 } from 'solid-js'
 import { createStore, type Store } from 'solid-js/store'
-import { deepmerge } from 'deepmerge-ts'
 import { createLocalStorage } from '@solid-primitives/storage'
+import { deepmerge } from 'deepmerge-ts'
 import * as JSONS from '@brillout/json-s'
 import { useService } from './service'
 import { isTruthy } from '../utils'

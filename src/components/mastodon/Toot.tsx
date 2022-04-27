@@ -1,10 +1,4 @@
-import {
-  createResource,
-  Match,
-  Show,
-  Switch,
-  type Component,
-} from 'solid-js'
+import { createResource, Match, Show, Switch, type Component } from 'solid-js'
 import { formatDistance } from 'date-fns'
 import { EntityRef } from '../../services'
 import { useEntityCache } from '../../stores/entityCache'

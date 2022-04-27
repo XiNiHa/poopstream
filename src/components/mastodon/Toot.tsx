@@ -1,8 +1,6 @@
 import {
-  createMemo,
   createResource,
   Match,
-  onMount,
   Show,
   Switch,
   type Component,
@@ -14,22 +12,15 @@ import { useEntityCache } from '../../stores/entityCache'
 interface Props {
   entityRef: EntityRef
   baseTime?: Date
-  onMount?: (ref: HTMLElement | undefined) => void
 }
 
 const Toot: Component<Props> = (props) => {
-  // eslint-disable-next-line prefer-const
-  let ref: HTMLDivElement | undefined = undefined
-  onMount(() => props.onMount && props.onMount(ref))
-
-  const [entityCache] = useEntityCache()
-  const maybeEntity = createMemo(() => entityCache.cache[props.entityRef.id])
-  const [entity] = createResource(() => maybeEntity())
+  const { get: getEntityCache } = useEntityCache()
+  const [entity] = createResource(async () => getEntityCache(props.entityRef))
 
   return (
     <div
-      ref={ref}
-      id={`mastodon-toot-${entity()?.id}`}
+      id={`${props.entityRef.serviceId}-${props.entityRef.type}-${props.entityRef.id}`}
       flex="~ col"
       m="4"
       p="y-4 x-8"

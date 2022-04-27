@@ -7,6 +7,10 @@ export interface Service {
     string,
     Component<{ entityRef: EntityRef } & Record<string, unknown>>
   >
+  entityResolvers: Record<
+    string,
+    ((id: string) => Entity | null | Promise<Entity | null>) | undefined
+  >
   streamSources: Record<string, StreamSource>
 }
 
@@ -14,6 +18,8 @@ export interface Entity {
   id: string
   serviceId: string
   type: string
+  expired: boolean
+
   createdAt: Date
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   inner: any

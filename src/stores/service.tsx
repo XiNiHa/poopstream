@@ -4,7 +4,7 @@ import { Mastodon, MastodonServiceId } from '../services/mastodon'
 import type { Service } from '../services'
 
 export type ServiceContextState = Store<{
-  services: Record<string, Service>
+  services: Record<string, Service | undefined>
 }>
 type ServiceContextActions = {}
 export type ServiceContextValue = [

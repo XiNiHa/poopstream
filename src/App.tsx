@@ -10,8 +10,8 @@ const Stream = lazy(() => import('./components/Stream'))
 
 const App: Component = () => {
   return (
-    <EntityCacheProvider>
-      <ServiceProvider>
+    <ServiceProvider>
+      <EntityCacheProvider>
         <AuthProvider>
           <StreamProvider>
             <Router>
@@ -30,8 +30,8 @@ const App: Component = () => {
             </Router>
           </StreamProvider>
         </AuthProvider>
-      </ServiceProvider>
-    </EntityCacheProvider>
+      </EntityCacheProvider>
+    </ServiceProvider>
   )
 }
 

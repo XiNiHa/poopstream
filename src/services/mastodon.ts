@@ -1,7 +1,11 @@
-import { Entity, Service } from '.'
-import Toot from '../components/mastodon/Toot'
+import type { Entity, Service } from '.'
 import type { DeepReadonly } from '../utils'
-import type { GetV1TimelinesPublicResult, Status } from '../types/mastodon'
+import type {
+  GetV1StatusesIdResult,
+  GetV1TimelinesPublicResult,
+  Status,
+} from '../types/mastodon'
+import { lazy } from 'solid-js'
 
 export interface TootEntity extends Entity {
   inner: DeepReadonly<Status>
@@ -11,6 +15,7 @@ export const toTootEntity = (status: Status): TootEntity => ({
   id: status.id,
   serviceId: MastodonServiceId,
   type: 'toot',
+  expired: false,
   createdAt: new Date(status.created_at),
   inner: status,
 })
@@ -21,7 +26,18 @@ export const Mastodon: Service = {
   name: 'Mastodon',
   identifier: MastodonServiceId,
   entityComponents: {
-    toot: Toot,
+    toot: lazy(() => import('../components/mastodon/Toot')),
+  },
+  entityResolvers: {
+    toot: async (id: string) => {
+      try {
+        const status = await fetch(`https://twingyeo.kr/api/v1/statuses/${id}`)
+        const data: GetV1StatusesIdResult = await status.json()
+        return toTootEntity(data)
+      } catch {
+        return null
+      }
+    },
   },
   streamSources: {
     publicTimeline: {

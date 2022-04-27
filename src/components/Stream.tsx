@@ -4,14 +4,12 @@ import {
   For,
   onCleanup,
   onMount,
-  untrack,
   type Component,
 } from 'solid-js'
 import { useStream } from '../stores/stream'
 import { useService } from '../stores/service'
 
-const createItemWatcher = (block: ScrollLogicalPosition) => {
-  const [prevItem, setPrevItem] = createSignal<HTMLElement | null>(null)
+const createItemWatcher = () => {
   const [item, setItem] = createSignal<HTMLElement | null>(null)
   const [isItemVisible, setVisible] = createSignal(false)
   const observer = new IntersectionObserver(
@@ -20,17 +18,11 @@ const createItemWatcher = (block: ScrollLogicalPosition) => {
   )
   createEffect(() => {
     const el = item()
-    const prevEl = untrack(prevItem)
-    if (prevEl) observer.unobserve(prevEl)
-    if (el?.id !== prevEl?.id) {
-      if (el) observer.observe(el)
-      if (prevEl) document.getElementById(prevEl.id)?.scrollIntoView({ block })
-    }
+    if (el) observer.observe(el)
   })
-  createEffect(() => setPrevItem(item()))
   onCleanup(() => {
     const el = item()
-    el && observer.unobserve(el)
+    if (el) observer.unobserve(el)
   })
   return [isItemVisible, setItem] as const
 }
@@ -43,14 +35,40 @@ const PublicTimelines: Component<Props> = (props) => {
   const [serviceState] = useService()
   const [streamState, { loadItemsTop, loadItemsBottom }] = useStream()
 
-  const [isTopItemVisible, setTopItem] = createItemWatcher('start')
-  const [isBottomItemVisible, setBottomItem] = createItemWatcher('end')
+  /* eslint-disable prefer-const */
+  let topAnchor: HTMLDivElement | undefined = undefined
+  let bottomAnchor: HTMLDivElement | undefined = undefined
+  /* eslint-enable prefer-const */
+
+  const [isTopItemVisible, setTopItem] = createItemWatcher()
+  const [isBottomItemVisible, setBottomItem] = createItemWatcher()
+  onMount(() => {
+    if (topAnchor) setTopItem(topAnchor)
+    if (bottomAnchor) setBottomItem(bottomAnchor)
+  })
 
   createEffect(() => {
-    if (streamState.streams[props.streamId].entityRefs?.length === 0)
+    if (streamState.streams[props.streamId].entityRefs?.length === 0) {
       loadItemsTop('home')
-    if (isTopItemVisible()) loadItemsTop('home')
-    if (isBottomItemVisible()) loadItemsBottom('home')
+    }
+    if (isTopItemVisible()) {
+      loadItemsTop('home').then((ref) => setTimeout(() => {
+        if (ref) {
+          document
+            .getElementById(`${ref.serviceId}-${ref.type}-${ref.id}`)
+            ?.scrollIntoView({ block: 'start' })
+        }
+      }, 0))
+    }
+    if (isBottomItemVisible()) {
+      loadItemsBottom('home').then((ref) => setTimeout(() => {
+        if (ref) {
+          document
+            .getElementById(`${ref.serviceId}-${ref.type}-${ref.id}`)
+            ?.scrollIntoView({ block: 'end' })
+        }
+      }, 0))
+    }
   })
 
   let timeout: number
@@ -60,27 +78,18 @@ const PublicTimelines: Component<Props> = (props) => {
 
   return (
     <div id="timeline" m="x-auto" w="max-3xl">
+      <div ref={topAnchor} w="full" />
       <For each={streamState.streams[props.streamId].entityRefs ?? []}>
-        {(entityRef, i) => {
-          const Comp = serviceState.services[entityRef.serviceId].entityComponents[entityRef.type]
+        {(entityRef) => {
+          const Comp =
+            serviceState.services[entityRef.serviceId]?.entityComponents[
+              entityRef.type
+            ]
 
-          return (
-            <Comp
-              entityRef={entityRef}
-              baseTime={baseTime()}
-              onMount={(() => {
-                switch (i()) {
-                  case 0:
-                    return (ref: HTMLElement) => setTopItem(ref ?? null)
-                  case (streamState.streams[props.streamId].entityRefs
-                    ?.length ?? 0) - 1:
-                    return (ref: HTMLElement) => setBottomItem(ref ?? null)
-                }
-              })()}
-            />
-          )
+          return Comp && <Comp entityRef={entityRef} baseTime={baseTime()} />
         }}
       </For>
+      <div ref={bottomAnchor} w="full" />
     </div>
   )
 }

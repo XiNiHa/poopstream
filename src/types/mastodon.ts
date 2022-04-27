@@ -330,3 +330,4 @@ export type Application = {
 }
 
 export type GetV1TimelinesPublicResult = Status[]
+export type GetV1StatusesIdResult = Status

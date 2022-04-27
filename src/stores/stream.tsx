@@ -1,4 +1,3 @@
-import { createLocalStorage } from '@solid-primitives/storage'
 import {
   createContext,
   createSignal,
@@ -6,15 +5,16 @@ import {
   useContext,
   type Component,
 } from 'solid-js'
+import { createStore, Store } from 'solid-js/store'
+import { createLocalStorage } from '@solid-primitives/storage'
 import * as JSONS from '@brillout/json-s'
 import { MastodonServiceId } from '../services/mastodon'
 import type { EntityRef } from '../services'
 import { useService } from './service'
 import { isTruthy } from '../utils'
-import { createStore, Store } from 'solid-js/store'
 import { useEntityCache } from './entityCache'
 
-const MAX_STREAM_ITEM_COUNT = 200
+const MAX_STREAM_ITEM_COUNT = 50
 const STREAM_LOAD_COUNT_PER_SOURCE = 10
 
 export type StreamContextState = Store<{
@@ -97,7 +97,7 @@ export const StreamProvider: Component = (props) => {
         )
     )
   })
-  const [, { set: setEntityCache }] = useEntityCache()
+  const { set: setEntityCache } = useEntityCache()
   const [serviceState] = useService()
   const [lock, setLock] = createSignal(false)
   const [reachedTop, setReachedTop] = createSignal(false)
@@ -118,7 +118,7 @@ export const StreamProvider: Component = (props) => {
             stream.entityRefs,
             'before'
           )
-          return serviceState.services[source.serviceId].streamSources[
+          return serviceState.services[source.serviceId]?.streamSources[
             source.streamSourceId
           ].getEntitiesBefore(beforeCursor, STREAM_LOAD_COUNT_PER_SOURCE)
         })
@@ -135,17 +135,17 @@ export const StreamProvider: Component = (props) => {
       reachedTopResetTimeout = setTimeout(() => setReachedTop(false), 10000)
 
       const entityRefs: EntityRef[] = entities.map((entity) => {
-        setEntityCache(entity.id, entity)
-        return {
+        const ref = {
           serviceId: entity.serviceId,
           type: entity.type,
           id: entity.id,
         }
+        setEntityCache(ref, entity)
+        return ref
       })
 
-      const newEntityRefs = [
-        ...entityRefs,
-        ...(stream.entityRefs?.slice(
+      const oldEntityRefs =
+        stream.entityRefs?.slice(
           0,
           Math.min(
             stream.entityRefs.length,
@@ -154,13 +154,15 @@ export const StreamProvider: Component = (props) => {
                 entities.length -
                 MAX_STREAM_ITEM_COUNT)
           )
-        ) ?? []),
-      ]
+        ) ?? []
+      const oldFirstRef = JSON.parse(JSON.stringify(oldEntityRefs[0] ?? null))
+
+      const newEntityRefs = [...entityRefs, ...oldEntityRefs]
       setState('streams', streamId, 'entityRefs', newEntityRefs)
       setStore('streams', state.streams)
 
       setTimeout(() => setLock(false), 1000)
-      return newEntityRefs[0] ?? null
+      return oldFirstRef
     },
     // eslint-disable-next-line solid/reactivity
     loadItemsBottom: async (streamId) => {
@@ -175,7 +177,7 @@ export const StreamProvider: Component = (props) => {
             stream.entityRefs,
             'after'
           )
-          return serviceState.services[source.serviceId].streamSources[
+          return serviceState.services[source.serviceId]?.streamSources[
             source.streamSourceId
           ].getEntitiesAfter(afterCursor, STREAM_LOAD_COUNT_PER_SOURCE)
         })
@@ -188,12 +190,13 @@ export const StreamProvider: Component = (props) => {
       entities.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
 
       const entityRefs: EntityRef[] = entities.map((entity) => {
-        setEntityCache(entity.id, entity)
-        return {
+        const ref = {
           serviceId: entity.serviceId,
           type: entity.type,
           id: entity.id,
         }
+        setEntityCache(ref, entity)
+        return ref
       })
 
       const frontSlice = Math.max(
@@ -203,16 +206,18 @@ export const StreamProvider: Component = (props) => {
           MAX_STREAM_ITEM_COUNT
       )
 
-      const newEntityRefs = [
-        ...(stream.entityRefs?.slice(frontSlice) ?? []),
-        ...entityRefs,
-      ]
+      const oldEntityRefs = stream.entityRefs?.slice(frontSlice) ?? []
+      const oldFirstRef = JSON.parse(
+        JSON.stringify(oldEntityRefs[oldEntityRefs.length - 1] ?? null)
+      )
+
+      const newEntityRefs = [...oldEntityRefs, ...entityRefs]
       setState('streams', streamId, 'entityRefs', newEntityRefs)
       setStore('streams', state.streams)
 
       if (frontSlice !== 0) setReachedTop(false)
       setTimeout(() => setLock(false), 1000)
-      return newEntityRefs[newEntityRefs.length - 1] ?? null
+      return oldFirstRef
     },
   }
 

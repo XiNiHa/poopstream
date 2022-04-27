@@ -42,11 +42,11 @@ export const Mastodon: Service = {
         return statuses.map(toTootEntity)
       },
       getEntitiesBefore: async (
-        since_id: string | null,
+        min_id: string | null,
         limit: number
       ): Promise<TootEntity[]> => {
         const params = new URLSearchParams({
-          ...(since_id && { since_id }),
+          ...(min_id && { min_id }),
           limit: limit.toFixed(0),
         })
         const statuses: GetV1TimelinesPublicResult = await fetch(

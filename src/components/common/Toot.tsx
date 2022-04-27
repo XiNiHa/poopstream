@@ -1,8 +1,10 @@
 import { Match, onMount, Show, Switch, type Component } from 'solid-js'
+import { formatDistance } from 'date-fns'
 import { TootEntity } from '../../services/mastodon'
 
 interface Props {
   entity: TootEntity
+  baseTime?: Date
   onMount?: (ref: HTMLElement | undefined) => void
 }
 
@@ -10,14 +12,6 @@ const Toot: Component<Props> = (props) => {
   // eslint-disable-next-line prefer-const
   let ref: HTMLDivElement | undefined = undefined
   onMount(() => props.onMount && props.onMount(ref))
-
-  let today = new Date()
-  today = new Date(today.getFullYear(), today.getMonth(), today.getDate())
-  const todayFormat = Intl.DateTimeFormat(undefined, { timeStyle: 'short' })
-  const dateFormat = Intl.DateTimeFormat(undefined, {
-    dateStyle: 'full',
-    timeStyle: 'short',
-  })
 
   return (
     <div
@@ -69,18 +63,12 @@ const Toot: Component<Props> = (props) => {
               </Match>
             </Switch>
           </span>
-          <span>
-            {(() => {
-              const date = new Date(props.entity.inner.created_at)
-              const day = new Date(
-                date.getFullYear(),
-                date.getMonth(),
-                date.getDate()
-              )
-              return (
-                day.getTime() === today.getTime() ? todayFormat : dateFormat
-              ).format()
-            })()}
+          <span title={props.entity.createdAt.toLocaleString()}>
+            {formatDistance(
+              props.entity.createdAt,
+              props.baseTime ?? new Date()
+            )}{' '}
+            ago
           </span>
         </div>
       </div>

@@ -3,6 +3,7 @@ import {
   createSignal,
   For,
   onCleanup,
+  onMount,
   untrack,
   type Component,
 } from 'solid-js'
@@ -46,12 +47,18 @@ const PublicTimelines: Component = () => {
     if (isBottomItemVisible()) loadItemsBottom('home')
   })
 
+  let timeout: number
+  const [baseTime, setBaseTime] = createSignal(new Date())
+  onMount(() => setInterval(() => setBaseTime(new Date()), 5000))
+  onCleanup(() => clearInterval(timeout))
+
   return (
     <div id="timeline" m="x-auto" w="max-3xl">
       <For each={streamState.streams.home.entities ?? []}>
         {(entity, i) => (
           <Toot
             entity={entity}
+            baseTime={baseTime()}
             onMount={(() => {
               switch (i()) {
                 case 0:

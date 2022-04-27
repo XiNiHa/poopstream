@@ -9,6 +9,7 @@ import {
 } from 'solid-js'
 import Toot from './common/Toot'
 import { useStream } from '../stores/stream'
+import { useEntityCache } from '../stores/entityCache'
 
 const createItemWatcher = (block: ScrollLogicalPosition) => {
   const [prevItem, setPrevItem] = createSignal<HTMLElement | null>(null)
@@ -36,13 +37,14 @@ const createItemWatcher = (block: ScrollLogicalPosition) => {
 }
 
 const PublicTimelines: Component = () => {
+  const [entityCache] = useEntityCache()
   const [streamState, { loadItemsTop, loadItemsBottom }] = useStream()
 
   const [isTopItemVisible, setTopItem] = createItemWatcher('start')
   const [isBottomItemVisible, setBottomItem] = createItemWatcher('end')
 
   createEffect(() => {
-    if (streamState.streams.home.entities?.length === 0) loadItemsTop('home')
+    if (streamState.streams.home.entityRefs?.length === 0) loadItemsTop('home')
     if (isTopItemVisible()) loadItemsTop('home')
     if (isBottomItemVisible()) loadItemsBottom('home')
   })
@@ -54,16 +56,16 @@ const PublicTimelines: Component = () => {
 
   return (
     <div id="timeline" m="x-auto" w="max-3xl">
-      <For each={streamState.streams.home.entities ?? []}>
+      <For each={streamState.streams.home.entityRefs ?? []}>
         {(entity, i) => (
           <Toot
-            entity={entity}
+            entity={entityCache.cache[entity.id]}
             baseTime={baseTime()}
             onMount={(() => {
               switch (i()) {
                 case 0:
                   return (ref) => setTopItem(ref ?? null)
-                case (streamState.streams.home.entities?.length ?? 0) - 1:
+                case (streamState.streams.home.entityRefs?.length ?? 0) - 1:
                   return (ref) => setBottomItem(ref ?? null)
               }
             })()}

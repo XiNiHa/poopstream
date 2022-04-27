@@ -3,26 +3,9 @@ import { For, Show, type JSX, type Component, Suspense } from 'solid-js'
 import { useAuth } from '../stores/auth'
 
 const Layout: Component = (props) => {
-  const [authState, { setActiveAccount, clearActiveAccount }] = useAuth()
-
   return (
     <div w="full" h="full" flex="~ col">
-      <header
-        p="x-8 y-4"
-        flex="~ row"
-        justify="between"
-        align="items-center"
-        border="b gray-300"
-        bg="blue-100"
-      >
-        <h1 text="2xl">Poopstream</h1>
-        <div flex="~ row" align="items-center">
-          <span>Active account ID: {authState.activeAccountId ?? 'None'}</span>
-          <Show when={authState.activeAccountId}>
-            <button onClick={clearActiveAccount}>Log out</button>
-          </Show>
-        </div>
-      </header>
+      <Header border="b gray-300" />
       <div flex="1 ~ row" overflow="hidden">
         <SideNav w="min-300px" border="r gray-300" p="4" />
         <main flex="1" overflow="y-auto" h="max-full">
@@ -38,6 +21,29 @@ const Layout: Component = (props) => {
         </main>
       </div>
     </div>
+  )
+}
+
+const Header: Component<JSX.HTMLAttributes<HTMLElement>> = (props) => {
+  const [authState, { setActiveAccount, clearActiveAccount }] = useAuth()
+
+  return (
+    <header
+      p="x-8 y-4"
+      flex="~ row"
+      justify="between"
+      align="items-center"
+      bg="blue-100"
+      {...props}
+    >
+      <h1 text="2xl">Poopstream</h1>
+      <div flex="~ row" align="items-center">
+        <span>Active account ID: {authState.activeAccountId ?? 'None'}</span>
+        <Show when={authState.activeAccountId}>
+          <button onClick={clearActiveAccount}>Log out</button>
+        </Show>
+      </div>
+    </header>
   )
 }
 

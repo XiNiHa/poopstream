@@ -16,6 +16,12 @@ export interface Entity {
   inner: any
 }
 
+export interface EntityRef {
+  readonly serviceId: string
+  readonly type: string
+  readonly id: string
+}
+
 export interface StreamSource {
   id: string
   name: string

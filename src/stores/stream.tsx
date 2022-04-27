@@ -8,10 +8,11 @@ import {
 } from 'solid-js'
 import * as JSONS from '@brillout/json-s'
 import { MastodonServiceId } from '../services/mastodon'
-import type { Entity } from '../services'
+import type { EntityRef } from '../services'
 import { useService } from './service'
 import { isTruthy } from '../utils'
 import { createStore, Store } from 'solid-js/store'
+import { useEntityCache } from './entityCache'
 
 const MAX_STREAM_ITEM_COUNT = 200
 const STREAM_LOAD_COUNT_PER_SOURCE = 10
@@ -24,13 +25,13 @@ export type StreamContextState = Store<{
         serviceId: string
         streamSourceId: string
       }[]
-      entities: Entity[] | null
+      entityRefs: EntityRef[] | null
     }
   >
 }>
 type StreamContextActions = {
-  loadItemsTop: (streamId: string, force?: boolean) => Promise<Entity | null>
-  loadItemsBottom: (streamId: string) => Promise<Entity | null>
+  loadItemsTop: (streamId: string, force?: boolean) => Promise<EntityRef | null>
+  loadItemsBottom: (streamId: string) => Promise<EntityRef | null>
 }
 export type StreamContextValue = [
   state: StreamContextState,
@@ -46,7 +47,7 @@ const defaultState = {
           streamSourceId: 'publicTimeline',
         },
       ],
-      entities: null,
+      entityRefs: null,
     },
   },
 }
@@ -61,11 +62,11 @@ const StreamContext = createContext<StreamContextValue>([
 
 function getCursorForService(
   serviceId: string,
-  entities: readonly Entity[] | null,
+  entityRefs: readonly EntityRef[] | null,
   direction: 'before' | 'after'
 ): string | null {
-  if (!entities) return null
-  const filtered = entities.filter((entity) => entity.serviceId === serviceId)
+  if (!entityRefs) return null
+  const filtered = entityRefs.filter((entity) => entity.serviceId === serviceId)
   switch (direction) {
     case 'before':
       return filtered.length ?? 0 > 0 ? filtered[0].id : null
@@ -82,7 +83,6 @@ export const StreamProvider: Component = (props) => {
   })
   const [state, setState] = createStore<StreamContextState>({
     ...defaultState,
-    ...(store.streams as StreamContextState['streams']),
   })
   onMount(() => {
     const streams = store.streams as StreamContextState['streams']
@@ -92,11 +92,12 @@ export const StreamProvider: Component = (props) => {
         Object.fromEntries(
           Object.entries(state.streams).map(([k, v]) => [
             k,
-            { ...v, entities: [] },
+            { ...v, entityRefs: [] },
           ])
         )
     )
   })
+  const [, { set: setEntityCache }] = useEntityCache()
   const [serviceState] = useService()
   const [lock, setLock] = createSignal(false)
   const [reachedTop, setReachedTop] = createSignal(false)
@@ -114,7 +115,7 @@ export const StreamProvider: Component = (props) => {
         stream.sources.map((source) => {
           const beforeCursor = getCursorForService(
             source.serviceId,
-            stream.entities,
+            stream.entityRefs,
             'before'
           )
           return serviceState.services[source.serviceId].streamSources[
@@ -133,22 +134,33 @@ export const StreamProvider: Component = (props) => {
       setReachedTop(entities.length === 0)
       reachedTopResetTimeout = setTimeout(() => setReachedTop(false), 10000)
 
-      const newEntities = [
-        ...entities,
-        ...(stream.entities?.slice(
+      const entityRefs: EntityRef[] = entities.map((entity) => {
+        setEntityCache(entity.id, entity)
+        return {
+          serviceId: entity.serviceId,
+          type: entity.type,
+          id: entity.id,
+        }
+      })
+
+      const newEntityRefs = [
+        ...entityRefs,
+        ...(stream.entityRefs?.slice(
           0,
           Math.min(
-            stream.entities.length,
-            stream.entities.length -
-              (stream.entities.length + entities.length - MAX_STREAM_ITEM_COUNT)
+            stream.entityRefs.length,
+            stream.entityRefs.length -
+              (stream.entityRefs.length +
+                entities.length -
+                MAX_STREAM_ITEM_COUNT)
           )
         ) ?? []),
       ]
-      setState('streams', streamId, 'entities', newEntities)
+      setState('streams', streamId, 'entityRefs', newEntityRefs)
       setStore('streams', state.streams)
 
       setTimeout(() => setLock(false), 1000)
-      return newEntities[0] ?? null
+      return newEntityRefs[0] ?? null
     },
     // eslint-disable-next-line solid/reactivity
     loadItemsBottom: async (streamId) => {
@@ -160,7 +172,7 @@ export const StreamProvider: Component = (props) => {
         stream.sources.map((source) => {
           const afterCursor = getCursorForService(
             source.serviceId,
-            stream.entities,
+            stream.entityRefs,
             'after'
           )
           return serviceState.services[source.serviceId].streamSources[
@@ -175,21 +187,32 @@ export const StreamProvider: Component = (props) => {
 
       entities.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
 
+      const entityRefs: EntityRef[] = entities.map((entity) => {
+        setEntityCache(entity.id, entity)
+        return {
+          serviceId: entity.serviceId,
+          type: entity.type,
+          id: entity.id,
+        }
+      })
+
       const frontSlice = Math.max(
         0,
-        (stream.entities?.length ?? 0) + entities.length - MAX_STREAM_ITEM_COUNT
+        (stream.entityRefs?.length ?? 0) +
+          entities.length -
+          MAX_STREAM_ITEM_COUNT
       )
 
-      const newEntities = [
-        ...(stream.entities?.slice(frontSlice) ?? []),
-        ...entities,
+      const newEntityRefs = [
+        ...(stream.entityRefs?.slice(frontSlice) ?? []),
+        ...entityRefs,
       ]
-      setState('streams', streamId, 'entities', newEntities)
+      setState('streams', streamId, 'entityRefs', newEntityRefs)
       setStore('streams', state.streams)
 
       if (frontSlice !== 0) setReachedTop(false)
       setTimeout(() => setLock(false), 1000)
-      return newEntities[newEntities.length - 1] ?? null
+      return newEntityRefs[newEntityRefs.length - 1] ?? null
     },
   }
 

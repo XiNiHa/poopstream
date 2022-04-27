@@ -3,7 +3,10 @@ import type { Component } from 'solid-js'
 export interface Service {
   name: string
   identifier: string
-  entityComponents: Record<string, Component<{ entity: Entity }>>
+  entityComponents: Record<
+    string,
+    Component<{ entityRef: EntityRef } & Record<string, unknown>>
+  >
   streamSources: Record<string, StreamSource>
 }
 

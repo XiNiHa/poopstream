@@ -1,9 +1,18 @@
-import { Match, onMount, Show, Switch, type Component } from 'solid-js'
+import {
+  createMemo,
+  createResource,
+  Match,
+  onMount,
+  Show,
+  Switch,
+  type Component,
+} from 'solid-js'
 import { formatDistance } from 'date-fns'
-import { TootEntity } from '../../services/mastodon'
+import { EntityRef } from '../../services'
+import { useEntityCache } from '../../stores/entityCache'
 
 interface Props {
-  entity: TootEntity
+  entityRef: EntityRef
   baseTime?: Date
   onMount?: (ref: HTMLElement | undefined) => void
 }
@@ -13,10 +22,14 @@ const Toot: Component<Props> = (props) => {
   let ref: HTMLDivElement | undefined = undefined
   onMount(() => props.onMount && props.onMount(ref))
 
+  const [entityCache] = useEntityCache()
+  const maybeEntity = createMemo(() => entityCache.cache[props.entityRef.id])
+  const [entity] = createResource(() => maybeEntity())
+
   return (
     <div
       ref={ref}
-      id={`mastodon-toot-${props.entity.id}`}
+      id={`mastodon-toot-${entity()?.id}`}
       flex="~ col"
       m="4"
       p="y-4 x-8"
@@ -26,22 +39,20 @@ const Toot: Component<Props> = (props) => {
       <div flex="~ row" justify="between" items="center">
         <div flex="~ row" items="center">
           <img
-            src={props.entity.inner.account.avatar}
-            alt={`Avatar image of ${props.entity.inner.account.display_name}`}
+            src={entity()?.inner.account.avatar}
+            alt={`Avatar image of ${entity()?.inner.account.display_name}`}
             w="16"
             h="16"
             border="rounded-full"
           />
-          <a href={props.entity.inner.account.url} flex="~ col" m="l-4">
-            <Show when={props.entity.inner.account.display_name}>
-              <span text="lg">{props.entity.inner.account.display_name}</span>
-              <span text="base gray-400">
-                @{props.entity.inner.account.acct}
-              </span>
+          <a href={entity()?.inner.account.url} flex="~ col" m="l-4">
+            <Show when={entity()?.inner.account.display_name}>
+              <span text="lg">{entity()?.inner.account.display_name}</span>
+              <span text="base gray-400">@{entity()?.inner.account.acct}</span>
             </Show>
-            <Show when={!props.entity.inner.account.display_name}>
-              <a href={props.entity.inner.account.url} text="lg">
-                @{props.entity.inner.account.acct}
+            <Show when={!entity()?.inner.account.display_name}>
+              <a href={entity()?.inner.account.url} text="lg">
+                @{entity()?.inner.account.acct}
               </a>
             </Show>
           </a>
@@ -49,31 +60,33 @@ const Toot: Component<Props> = (props) => {
         <div flex="~ col" justify="end" text="right gray-500 space-nowrap">
           <span>
             <Switch>
-              <Match when={props.entity.inner.visibility === 'public'}>
+              <Match when={entity()?.inner.visibility === 'public'}>
                 Public
               </Match>
-              <Match when={props.entity.inner.visibility === 'unlisted'}>
+              <Match when={entity()?.inner.visibility === 'unlisted'}>
                 Unlisted
               </Match>
-              <Match when={props.entity.inner.visibility === 'private'}>
+              <Match when={entity()?.inner.visibility === 'private'}>
                 Private
               </Match>
-              <Match when={props.entity.inner.visibility === 'direct'}>
+              <Match when={entity()?.inner.visibility === 'direct'}>
                 Direct
               </Match>
             </Switch>
           </span>
-          <span title={props.entity.createdAt.toLocaleString()}>
-            {formatDistance(
-              props.entity.createdAt,
-              props.baseTime ?? new Date()
-            )}{' '}
+          <span title={entity()?.createdAt.toLocaleString()}>
+            {(() => {
+              const e = entity()
+              return (
+                e && formatDistance(e.createdAt, props.baseTime ?? new Date())
+              )
+            })()}{' '}
             ago
           </span>
         </div>
       </div>
       {/* eslint-disable-next-line solid/no-innerhtml */}
-      <div m="y-2" innerHTML={props.entity.inner.content} />
+      <div m="y-2" innerHTML={entity()?.inner.content} />
     </div>
   )
 }

@@ -6,7 +6,7 @@ import { StreamProvider } from './stores/stream'
 import { ServiceProvider } from './stores/service'
 import { EntityCacheProvider } from './stores/entityCache'
 
-const PublicTimelines = lazy(() => import('./components/PublicTimelines'))
+const Stream = lazy(() => import('./components/Stream'))
 
 const App: Component = () => {
   return (
@@ -21,7 +21,10 @@ const App: Component = () => {
                     path="/"
                     component={() => <h1 text="5xl red-500">Hello world!</h1>}
                   />
-                  <Route path="/public" component={PublicTimelines} />
+                  <Route
+                    path="/public"
+                    component={() => <Stream streamId="home" />}
+                  />
                 </Routes>
               </Layout>
             </Router>

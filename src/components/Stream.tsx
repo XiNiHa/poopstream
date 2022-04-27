@@ -7,9 +7,8 @@ import {
   untrack,
   type Component,
 } from 'solid-js'
-import Toot from './mastodon/Toot'
 import { useStream } from '../stores/stream'
-import { useEntityCache } from '../stores/entityCache'
+import { useService } from '../stores/service'
 
 const createItemWatcher = (block: ScrollLogicalPosition) => {
   const [prevItem, setPrevItem] = createSignal<HTMLElement | null>(null)
@@ -36,15 +35,20 @@ const createItemWatcher = (block: ScrollLogicalPosition) => {
   return [isItemVisible, setItem] as const
 }
 
-const PublicTimelines: Component = () => {
-  const [entityCache] = useEntityCache()
+interface Props {
+  streamId: string
+}
+
+const PublicTimelines: Component<Props> = (props) => {
+  const [serviceState] = useService()
   const [streamState, { loadItemsTop, loadItemsBottom }] = useStream()
 
   const [isTopItemVisible, setTopItem] = createItemWatcher('start')
   const [isBottomItemVisible, setBottomItem] = createItemWatcher('end')
 
   createEffect(() => {
-    if (streamState.streams.home.entityRefs?.length === 0) loadItemsTop('home')
+    if (streamState.streams[props.streamId].entityRefs?.length === 0)
+      loadItemsTop('home')
     if (isTopItemVisible()) loadItemsTop('home')
     if (isBottomItemVisible()) loadItemsBottom('home')
   })
@@ -56,21 +60,26 @@ const PublicTimelines: Component = () => {
 
   return (
     <div id="timeline" m="x-auto" w="max-3xl">
-      <For each={streamState.streams.home.entityRefs ?? []}>
-        {(entity, i) => (
-          <Toot
-            entity={entityCache.cache[entity.id]}
-            baseTime={baseTime()}
-            onMount={(() => {
-              switch (i()) {
-                case 0:
-                  return (ref) => setTopItem(ref ?? null)
-                case (streamState.streams.home.entityRefs?.length ?? 0) - 1:
-                  return (ref) => setBottomItem(ref ?? null)
-              }
-            })()}
-          />
-        )}
+      <For each={streamState.streams[props.streamId].entityRefs ?? []}>
+        {(entityRef, i) => {
+          const Comp = serviceState.services[entityRef.serviceId].entityComponents[entityRef.type]
+
+          return (
+            <Comp
+              entityRef={entityRef}
+              baseTime={baseTime()}
+              onMount={(() => {
+                switch (i()) {
+                  case 0:
+                    return (ref: HTMLElement) => setTopItem(ref ?? null)
+                  case (streamState.streams[props.streamId].entityRefs
+                    ?.length ?? 0) - 1:
+                    return (ref: HTMLElement) => setBottomItem(ref ?? null)
+                }
+              })()}
+            />
+          )
+        }}
       </For>
     </div>
   )

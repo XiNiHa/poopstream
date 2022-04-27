@@ -43,6 +43,7 @@ const createScrollManager = (props: {
     serializer: (val) => JSONS.stringify(val),
     deserializer: (val) => JSONS.parse(val),
   })
+  const [lock, setLock] = createSignal(true)
   const [isTopItemVisible, setTopItem] = createItemWatcher()
   const [isBottomItemVisible, setBottomItem] = createItemWatcher()
 
@@ -53,18 +54,22 @@ const createScrollManager = (props: {
     if (bottomAnchor) setBottomItem(bottomAnchor)
   })
   createEffect(() => {
-    if (isTopItemVisible()) props.onTopReached?.()
-    if (isBottomItemVisible()) props.onBottomReached?.()
+    if (isTopItemVisible() && !lock()) props.onTopReached?.()
+    if (isBottomItemVisible() && !lock()) props.onBottomReached?.()
   })
 
-  createEffect(
-    () =>
-      store.scrollTop &&
-      props.container()?.scrollTo({ top: store.scrollTop as number })
-  )
-  onCleanup(() => {
-    const container = props.container()
-    if (container) setStore('scrollTop', container.scrollTop)
+  createEffect(() => {
+    if (store.scrollTop) {
+      setLock(false)
+      props
+        .container()
+        ?.parentElement?.scrollTo({ top: store.scrollTop as number })
+    }
+  })
+  onMount(() => setTimeout(() => setLock(false), 2000))
+  window.addEventListener('beforeunload', () => {
+    const scroll = props.container()?.parentElement
+    if (scroll) setStore('scrollTop', scroll.scrollTop)
   })
 
   const actions = {

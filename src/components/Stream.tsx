@@ -6,8 +6,12 @@ import {
   onMount,
   type Component,
 } from 'solid-js'
+import { createLocalStorage } from '@solid-primitives/storage'
+import * as JSONS from '@brillout/json-s'
+import { createLiveValue } from '../utils'
 import { useStream } from '../stores/stream'
 import { useService } from '../stores/service'
+import type { EntityRef } from '../services'
 
 const createItemWatcher = () => {
   const [item, setItem] = createSignal<HTMLElement | null>(null)
@@ -27,57 +31,91 @@ const createItemWatcher = () => {
   return [isItemVisible, setItem] as const
 }
 
+const createScrollManager = (props: {
+  container: () => HTMLDivElement | undefined
+  topAnchor: () => HTMLDivElement | undefined
+  bottomAnchor: () => HTMLDivElement | undefined
+  onTopReached?: () => void
+  onBottomReached?: () => void
+}) => {
+  const [store, setStore] = createLocalStorage<unknown, unknown>({
+    prefix: 'poopstream-Stream-createScrollManager',
+    serializer: (val) => JSONS.stringify(val),
+    deserializer: (val) => JSONS.parse(val),
+  })
+  const [isTopItemVisible, setTopItem] = createItemWatcher()
+  const [isBottomItemVisible, setBottomItem] = createItemWatcher()
+
+  onMount(() => {
+    const topAnchor = props.topAnchor()
+    const bottomAnchor = props.bottomAnchor()
+    if (topAnchor) setTopItem(topAnchor)
+    if (bottomAnchor) setBottomItem(bottomAnchor)
+  })
+  createEffect(() => {
+    if (isTopItemVisible()) props.onTopReached?.()
+    if (isBottomItemVisible()) props.onBottomReached?.()
+  })
+
+  createEffect(
+    () =>
+      store.scrollTop &&
+      props.container()?.scrollTo({ top: store.scrollTop as number })
+  )
+  onCleanup(() => {
+    const container = props.container()
+    if (container) setStore('scrollTop', container.scrollTop)
+  })
+
+  const actions = {
+    scrollToEntity: (ref: EntityRef, block: ScrollLogicalPosition) => {
+      document
+        .getElementById(`${ref.serviceId}-${ref.type}-${ref.id}`)
+        ?.scrollIntoView({ block })
+    },
+  }
+
+  return actions
+}
+
 interface Props {
   streamId: string
 }
 
-const PublicTimelines: Component<Props> = (props) => {
+const Stream: Component<Props> = (props) => {
   const [serviceState] = useService()
   const [streamState, { loadItemsTop, loadItemsBottom }] = useStream()
-
-  /* eslint-disable prefer-const */
-  let topAnchor: HTMLDivElement | undefined = undefined
-  let bottomAnchor: HTMLDivElement | undefined = undefined
-  /* eslint-enable prefer-const */
-
-  const [isTopItemVisible, setTopItem] = createItemWatcher()
-  const [isBottomItemVisible, setBottomItem] = createItemWatcher()
-  onMount(() => {
-    if (topAnchor) setTopItem(topAnchor)
-    if (bottomAnchor) setBottomItem(bottomAnchor)
-  })
 
   createEffect(() => {
     if (streamState.streams[props.streamId].entityRefs?.length === 0) {
       loadItemsTop('home')
     }
-    if (isTopItemVisible()) {
-      loadItemsTop('home').then((ref) => setTimeout(() => {
-        if (ref) {
-          document
-            .getElementById(`${ref.serviceId}-${ref.type}-${ref.id}`)
-            ?.scrollIntoView({ block: 'start' })
-        }
-      }, 0))
-    }
-    if (isBottomItemVisible()) {
-      loadItemsBottom('home').then((ref) => setTimeout(() => {
-        if (ref) {
-          document
-            .getElementById(`${ref.serviceId}-${ref.type}-${ref.id}`)
-            ?.scrollIntoView({ block: 'end' })
-        }
-      }, 0))
-    }
   })
 
-  let timeout: number
-  const [baseTime, setBaseTime] = createSignal(new Date())
-  onMount(() => setInterval(() => setBaseTime(new Date()), 5000))
-  onCleanup(() => clearInterval(timeout))
+  /* eslint-disable prefer-const */
+  let container: HTMLDivElement | undefined = undefined
+  let topAnchor: HTMLDivElement | undefined = undefined
+  let bottomAnchor: HTMLDivElement | undefined = undefined
+  /* eslint-enable prefer-const */
+
+  const { scrollToEntity } = createScrollManager({
+    container: () => container,
+    topAnchor: () => topAnchor,
+    bottomAnchor: () => bottomAnchor,
+    onTopReached: () =>
+      loadItemsTop('home').then((ref) =>
+        setTimeout(() => ref && scrollToEntity(ref, 'start'), 0)
+      ),
+    onBottomReached: () =>
+      loadItemsBottom('home').then((ref) =>
+        setTimeout(() => ref && scrollToEntity(ref, 'end'), 0)
+      ),
+  })
+
+  const baseTime = createLiveValue(() => new Date(), 5000)
 
   return (
-    <div id="timeline" m="x-auto" w="max-3xl">
+    <div ref={container} m="x-auto" w="max-3xl">
       <div ref={topAnchor} w="full" />
       <For each={streamState.streams[props.streamId].entityRefs ?? []}>
         {(entityRef) => {
@@ -94,4 +132,4 @@ const PublicTimelines: Component<Props> = (props) => {
   )
 }
 
-export default PublicTimelines
+export default Stream

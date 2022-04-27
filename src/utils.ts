@@ -1,3 +1,5 @@
+import { createSignal, onCleanup, onMount } from "solid-js"
+
 export type DeepReadonly<T> = {
   readonly [P in keyof T]: DeepReadonly<T[P]>
 }
@@ -23,4 +25,15 @@ export function isTruthy<X>(condition: X): condition is Truthy<X> {
 
 export function isFalsy<X>(condition: T<X>): condition is Falsy {
   return !condition
+}
+
+export const createLiveValue = <T>(
+  factory: () => T,
+  interval: number
+) => {
+  let timeout: number
+  const [value, setValue] = createSignal(factory())
+  onMount(() => setInterval(() => setValue(() => factory()), interval))
+  onCleanup(() => clearInterval(timeout))
+  return value
 }

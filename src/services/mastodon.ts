@@ -1,5 +1,5 @@
 import { Entity, Service } from '.'
-import Toot from '../components/common/Toot'
+import Toot from '../components/mastodon/Toot'
 import type { DeepReadonly } from '../utils'
 import type { GetV1TimelinesPublicResult, Status } from '../types/mastodon'
 

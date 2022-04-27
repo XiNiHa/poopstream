@@ -7,7 +7,7 @@ import {
   untrack,
   type Component,
 } from 'solid-js'
-import Toot from './common/Toot'
+import Toot from './mastodon/Toot'
 import { useStream } from '../stores/stream'
 import { useEntityCache } from '../stores/entityCache'
 

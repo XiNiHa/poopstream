@@ -36,12 +36,12 @@ const Toot: Component<Props> = (props) => {
             <Show when={props.entity.inner.account.display_name}>
               <span text="lg">{props.entity.inner.account.display_name}</span>
               <span text="base gray-400">
-                @{props.entity.inner.account.username}
+                @{props.entity.inner.account.acct}
               </span>
             </Show>
             <Show when={!props.entity.inner.account.display_name}>
               <a href={props.entity.inner.account.url} text="lg">
-                @{props.entity.inner.account.username}
+                @{props.entity.inner.account.acct}
               </a>
             </Show>
           </a>

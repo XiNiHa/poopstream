@@ -6,6 +6,7 @@ import {
   useContext,
   type Component,
 } from 'solid-js'
+import * as JSONS from '@brillout/json-s'
 import { MastodonServiceId } from '../services/mastodon'
 import type { Entity } from '../services'
 import { useService } from './service'
@@ -76,8 +77,8 @@ function getCursorForService(
 export const StreamProvider: Component = (props) => {
   const [store, setStore] = createLocalStorage<unknown, unknown>({
     prefix: 'poopstream-StreamProvider',
-    serializer: (val) => JSON.stringify(val),
-    deserializer: (val) => JSON.parse(val),
+    serializer: (val) => JSONS.stringify(val),
+    deserializer: (val) => JSONS.parse(val),
   })
   const [state, setState] = createStore<StreamContextState>({
     ...defaultState,

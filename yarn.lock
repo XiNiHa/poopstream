@@ -361,6 +361,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@brillout/json-s@npm:^0.4.5":
+  version: 0.4.5
+  resolution: "@brillout/json-s@npm:0.4.5"
+  checksum: a7dcdcf185ced5a9d17adb66a072c2e63c85f4ebef00b0b8f31d6c34f54c63c12f37d9e73a10d2a8be5024c3901b65169f2e01ac8a1dd55fb32e9dba1d4ed13c
+  languageName: node
+  linkType: hard
+
 "@eslint/eslintrc@npm:^1.2.2":
   version: 1.2.2
   resolution: "@eslint/eslintrc@npm:1.2.2"
@@ -2665,6 +2672,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "poopstream@workspace:."
   dependencies:
+    "@brillout/json-s": ^0.4.5
     "@solid-primitives/intersection-observer": ^1.3.0
     "@solid-primitives/storage": ^1.3.0
     "@typescript-eslint/eslint-plugin": ^5.21.0

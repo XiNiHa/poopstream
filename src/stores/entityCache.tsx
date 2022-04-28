@@ -5,9 +5,8 @@ import {
   useContext,
   type Component,
 } from 'solid-js'
-import { createStore, type Store } from 'solid-js/store'
+import { createStore, produce, reconcile, type Store } from 'solid-js/store'
 import { createLocalStorage } from '@solid-primitives/storage'
-import { deepmerge } from 'deepmerge-ts'
 import * as JSONS from '@brillout/json-s'
 import { useService } from './service'
 import { isTruthy } from '../utils'
@@ -18,7 +17,11 @@ export type EntityCacheContextState = Store<{
 }>
 type EntityCacheContextActions = {
   get: (ref: EntityRef) => Entity | null | Promise<Entity | null>
-  set: (ref: EntityRef, entity: Partial<Entity>, ttl?: number) => void
+  set: (
+    ref: EntityRef,
+    entity: Entity | Promise<Entity | null>,
+    ttl?: number
+  ) => void
 }
 export type EntityCacheContextValue = EntityCacheContextActions
 
@@ -46,8 +49,21 @@ export const EntityCacheProvider: Component = (props) => {
   const getEntityId = (ref: EntityRef) =>
     `${ref.serviceId}:${ref.type}:${ref.id}`
 
-  const updateCache = (ref: EntityRef, val: Entity | undefined) => {
-    setState('cache', getEntityId(ref), val)
+  const updateCache = (
+    ref: EntityRef,
+    val:
+      | Entity
+      | Promise<Entity | null>
+      | ((s: Entity | null | Promise<Entity | null> | undefined) => void)
+  ) => {
+    if (typeof val === 'function') {
+      setState(produce((s) => val(s.cache[getEntityId(ref)])))
+    } else if ('then' in val) {
+      setState('cache', getEntityId(ref), val)
+    } else {
+      setState('cache', getEntityId(ref), reconcile(val))
+    }
+
     setStore(
       'cache',
       Object.fromEntries(
@@ -63,18 +79,18 @@ export const EntityCacheProvider: Component = (props) => {
     if (cache) setState('cache', cache)
   })
 
-  const set = (
+  const set = async (
     ref: EntityRef,
-    entity: Partial<Entity> | null | Promise<Partial<Entity> | null>,
+    entity: Entity | Promise<Entity | null>,
     ttl = 60000
   ) => {
-    const merged = deepmerge(state.cache[getEntityId(ref)], entity)
-    const cloned = JSONS.parse(JSONS.stringify(merged))
-    // The actual thing I wanted was `structuredClone()`
-    updateCache(ref, cloned as Entity)
+    updateCache(ref, entity)
     const timeout = setTimeout(() => {
-      const newMerged = deepmerge(cloned, { expired: true })
-      updateCache(ref, JSONS.parse(JSONS.stringify(newMerged)) as Entity)
+      updateCache(ref, (s) => {
+        if (s && !('then' in s)) {
+          s.expired = true
+        }
+      })
       timeouts.delete(timeout)
     }, ttl)
     timeouts.add(timeout)
